@@ -1,6 +1,9 @@
 open Printf
 
-let forbidden_project_name_filename = ".reserve"
+(* Constant use for the filename containing the reserve project name for
+ * templates
+ *)
+let reserve_project_name_filename = ".reserve"
 
 let distillery_basic = "basic.ppx"
 
@@ -151,7 +154,7 @@ let create_project ~name ~env ~preds ~source_dir ~destination_dir =
       exit 1 );
   Array.iter
     (fun src_file ->
-      if src_file <> ".git" then
+      if src_file <> ".git" && src_file <> reserve_project_name_filename then
         let src_path = Filename.concat source_dir src_file in
         let dst_path =
           let dst_file = Str.(global_replace (regexp (quote "PROJECT_NAME")) name src_file) in
@@ -200,13 +203,13 @@ let get_templates () =
 
 (* Check if the project name is valid for the given template. For example,
  * options is not a valid project name for basic.ppx. It is supposed each
- * template has a file {!forbidden_project_name_filename} file containing the
- * list of forbidden project name (one name a line).
+ * template has a file {!reserve_project_name_filename} file containing the
+ * list of reserve project name (one name a line).
  *)
-let check_forbidden_project_name project_name template_name =
+let check_reserve_project_name project_name template_name =
   let file = Filename.concat
     (Filename.concat (get_templatedir ()) template_name)
-    forbidden_project_name_filename
+    reserve_project_name_filename
   in
   if Sys.file_exists file
   then
@@ -234,7 +237,7 @@ let template_id_exists template_id =
 
 (* Add a new template with the id [template_id] cloned from [url] *)
 (* FIXME: security like template_id = ../../hello *)
-let add_template_fn url template_id =
+let add_git_template_fn url template_id =
   if url = "" then
     printf "You need to mention an url using -url with the -add-template \
     argument.\n"
@@ -289,8 +292,8 @@ let main () =
   let name = ref None in
   (* add-template *)
   let add_url = ref "" in
-  let add_template_id = ref "" in
-  let add_template = ref false in
+  let add_git_template_id = ref "" in
+  let add_git_template = ref false in
   (* add-template *)
   let template = ref distillery_basic in
   let templates = get_templates () in
@@ -317,20 +320,20 @@ let main () =
       "<dir> Generate the project in directory <dir> (the project's name by default)";
       "-rm-template", String remove_template_fn,
       " -rm-template [template_id] Remove the template with [template_id]";
-      "-add-template", (Set add_template),
+      "-add-git-template", (Set add_git_template),
       " Add a new template. Use -url [url] and -id [id].";
       "-url", (Set_string add_url),
       " The URL of the git repository containing the template needed by
       -add-template argument";
-      "-id", (Set_string add_template_id),
+      "-id", (Set_string add_git_template_id),
       " The ID of the template needed by -add-template argument";
   ]) in
   Arg.(parse spec (bad "Don't know what to do with %S") usage_msg);
   if !dir then printf "%s\n" (get_templatedir ())
-  else if !add_template then add_template_fn (!add_url) (!add_template_id)
+  else if !add_git_template then add_git_template_fn (!add_url) (!add_git_template_id)
   else if
-    not (!add_template) &&
-    ((! add_url) <> "" || (! add_template_id) <> "")
+    not (!add_git_template) &&
+    ((! add_url) <> "" || (! add_git_template_id) <> "")
   then
     printf "-url and -id must be only used with -add-template argument. For \
     example eliom-distillery -add-template -url [git_url] -id [template_id].\n"
@@ -344,7 +347,7 @@ let main () =
           template, name, dir
       | _ -> Arg.usage spec usage_msg; exit 1
     in
-    if not (check_forbidden_project_name name template) then
+    if not (check_reserve_project_name name template) then
       printf
         "'%s' is not a valid project name for the template '%s'.\n"
         name
